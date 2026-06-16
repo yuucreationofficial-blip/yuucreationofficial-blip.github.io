@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>詩画像メーカー</title>
+<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"></script>
+<style>
+  @font-face {
+    font-family: 'TekitouPoem';
+    src: url('https://cdn.jsdelivr.net/gh/Hagi42/TekitouPoem-Font@main/TekitouPoem_Bold.ttf') format('truetype');
+    font-display: swap;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a1a; color: #eee; font-family: sans-serif;
+    padding: 16px; display: flex; flex-direction: column;
+    align-items: center; gap: 14px;
+  }
+  .panel { width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 12px; }
+  label { font-size: 14px; color: #aaa; display: block; margin-bottom: 4px; }
+  input[type="text"], textarea, select {
+    width: 100%; background: #2a2a2a; color: #fff; border: 1px solid #444;
+    border-radius: 8px; padding: 12px; font-size: 16px; font-family: sans-serif;
+  }
+  textarea { min-height: 200px; line-height: 1.6; resize: vertical; }
+  .row { display: flex; gap: 12px; }
+  .row > div { flex: 1; }
+  .hint { font-size: 12px; color: #888; margin-top: 2px; }
+  .section { font-size: 12px; color: #1d9bf0; border-top: 1px solid #333; padding-top: 10px; margin-top: 2px; }
+
+  .stage {
+    width: 100%; max-width: 600px; aspect-ratio: 1 / 1;
+    overflow: hidden; border-radius: 4px; background: #fff;
+  }
+  .canvas {
+    width: 1080px; height: 1080px; background: #FFFFFF; color: #000000;
+    font-family: 'TekitouPoem', sans-serif; padding: 75px;
+    display: flex; flex-direction: column; justify-content: center;
+    overflow: hidden; transform-origin: top left; position: relative;
+    -webkit-font-smoothing: antialiased; text-rendering: geometricPrecision;
+  }
+  .canvas::after {
+    content: ""; position: absolute; top: 0; left: 0;
+    width: 1px; height: 1px; background: rgba(0,0,0,0.004);
+  }
+  .title { font-size: 52px; letter-spacing: 0.35em; margin-bottom: 45px; }
+  .body { display: flex; gap: 60px; }
+  .column {
+    flex: 1; font-size: 24px; line-height: 1.7;
+    letter-spacing: 0.03em; white-space: pre-wrap;
+  }
+  #save {
+    width: 100%; max-width: 600px; font-size: 18px; padding: 16px 32px;
+    border: none; border-radius: 999px; background: #1d9bf0; color: #fff; font-weight: bold;
+  }
+  #status { font-size: 13px; color: #888; min-height: 18px; text-align: center; }
+</style>
+</head>
+<body>
+
+  <div class="panel">
+    <div>
+      <label>タイトル</label>
+      <input type="text" id="in-title" value="きみと出逢うまで">
+    </div>
+
+    <div class="section">― タイトルの見た目 ―</div>
+    <div class="row">
+      <div>
+        <label>大きさ</label>
+        <select id="in-tsize">
+          <option value="36">36（小）</option>
+          <option value="44">44</option>
+          <option value="52" selected>52（標準）</option>
+          <option value="64">64</option>
+          <option value="76">76（大）</option>
+        </select>
+      </div>
+      <div>
+        <label>配置</label>
+        <select id="in-talign">
+          <option value="left" selected>左</option>
+          <option value="center">中央</option>
+          <option value="right">右</option>
+        </select>
+      </div>
+      <div>
+        <label>字間</label>
+        <select id="in-tspace">
+          <option value="0">詰める</option>
+          <option value="0.15">標準</option>
+          <option value="0.35" selected>広い</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="section">― 本文 ―</div>
+    <div class="row">
+      <div>
+        <label>左右の分け方</label>
+        <select id="in-split">
+          <option value="auto" selected>自動（行数で半々）</option>
+          <option value="manual">手動（左の連数を指定）</option>
+        </select>
+      </div>
+      <div>
+        <label>手動の時：左の連数</label>
+        <input type="text" id="in-left" value="4" inputmode="numeric">
+      </div>
+    </div>
+
+    <div>
+      <label>本文の文字サイズ</label>
+      <select id="in-size">
+        <option value="14">14（極小・長い詩用）</option>
+        <option value="16">16（小）</option>
+        <option value="18">18</option>
+        <option value="20">20</option>
+        <option value="22">22</option>
+        <option value="24" selected>24（標準）</option>
+        <option value="28">28</option>
+        <option value="32">32</option>
+        <option value="38">38（大）</option>
+        <option value="46">46（特大）</option>
+      </select>
+      <div class="hint">プレビューを見て、はみ出さず余白が気持ちいいサイズに</div>
+    </div>
+
+    <div>
+      <label>詩の本文（連と連のあいだは空行であける）</label>
+      <textarea id="in-poem">昔々のまた昔に
+何も無いかもしれないのに
+あらゆる可能性が詰まった
+爆発で宇宙が生まれた？
+
+そして重力の関係で
+燃え盛る星が生まれて
+周りの塵がせめぎ合って
+我々の星が生まれた
+
+「どうして何故こんなにも、生きてゆくことは
+苦しいことなんだろう」
+
+それから生物ができ
+形変えて祖先が生まれた
+淘汰の中脈々続いて
+きみと今初めて出逢った
+
+昔、とある国の話
+戦いに敗北してから
+相手側の要求を飲み
+国の原則を植えられた？
+
+そして希望と絶望の中
+立ち上がる先代がいて
+人も道具も潤って
+壊れ 何か誤魔化された？
+
+「若い人は羨ましい、俺らの頃は本当大変だったよ」
+
+それからぼくら生まれ
+違和感の正体わからないまま
+笑う表情筋が痛くて
+きみはそれをやめてと言った
+
+「きっときみは知っていた、生き方は他にもあるということ」
+
+「自分で考えるのが大事」と
+知ったように人々は言う
+悔しいけどぼくも同じ
+だってそれはかけがえのない痛み
+
+出逢ったばかりのきみは
+不器用にもまだそこにいた
+どこから話そうかな
+いや、まずは「ああ、お久しぶり」</textarea>
+    </div>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="canvas" id="canvas">
+      <div class="title" id="title"></div>
+      <div class="body">
+        <div class="column" id="left"></div>
+        <div class="column" id="right"></div>
+      </div>
+    </div>
+  </div>
+
+  <button id="save">画像で保存（約3000px・高画質）</button>
+  <div id="status">フォント読み込み中…</div>
+
+<script>
+  const elTitle  = document.getElementById('in-title');
+  const elTsize  = document.getElementById('in-tsize');
+  const elTalign = document.getElementById('in-talign');
+  const elTspace = document.getElementById('in-tspace');
+  const elSplit  = document.getElementById('in-split');
+  const elLeft   = document.getElementById('in-left');
+  const elSize   = document.getElementById('in-size');
+  const elPoem   = document.getElementById('in-poem');
+
+  function render() {
+    const titleEl = document.getElementById('title');
+    titleEl.textContent = elTitle.value;
+    titleEl.style.fontSize = (parseInt(elTsize.value,10)||52) + 'px';
+    titleEl.style.textAlign = elTalign.value;
+    titleEl.style.letterSpacing = elTspace.value + 'em';
+
+    const size = parseInt(elSize.value, 10) || 24;
+    document.querySelectorAll('.column').forEach(c => c.style.fontSize = size + 'px');
+
+    const poem = elPoem.value;
+    const stanzas = poem.split(/\n\s*\n/);
+    let splitAt;
+    if (elSplit.value === 'manual') {
+      splitAt = parseInt(elLeft.value, 10) || 0;
+    } else {
+      const total = poem.split('\n').length;
+      let acc = 0; splitAt = stanzas.length;
+      for (let i = 0; i < stanzas.length; i++) {
+        const lines = stanzas[i].split('\n').length;
+        if (acc + lines / 2 >= total / 2) { splitAt = i; break; }
+        acc += lines + 1;
+      }
+      if (splitAt === 0) splitAt = 1;
+    }
+    document.getElementById('left').textContent  = stanzas.slice(0, splitAt).join('\n\n');
+    document.getElementById('right').textContent = stanzas.slice(splitAt).join('\n\n');
+  }
+
+  [elTitle, elTsize, elTalign, elTspace, elSplit, elLeft, elSize, elPoem].forEach(el => {
+    el.addEventListener('input', render);
+    el.addEventListener('change', render);
+  });
+
+  function fit() {
+    const stage = document.getElementById('stage');
+    const canvas = document.getElementById('canvas');
+    const scale = stage.clientWidth / 1080;
+    canvas.style.transform = 'scale(' + scale + ')';
+  }
+  window.addEventListener('resize', fit);
+  window.addEventListener('load', () => { render(); fit(); });
+  render(); fit();
+
+  const status = document.getElementById('status');
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => { status.textContent = '準備OK'; render(); });
+  }
+
+  document.getElementById('save').addEventListener('click', async () => {
+    status.textContent = '画像を作成中…（高画質なので数秒待ってね）';
+    const node = document.getElementById('canvas');
+    const prev = node.style.transform;
+    node.style.transform = 'scale(1)';
+    try {
+      const dataUrl = await htmlToImage.toPng(node, { width: 1080, height: 1080, pixelRatio: 2.78, cacheBust: true });
+      const link = document.createElement('a');
+      const safeTitle = (elTitle.value || 'poem').replace(/[\\/:*?"<>|\s]/g, '_');
+      link.download = 'poem_' + safeTitle + '.png';
+      link.href = dataUrl;
+      link.click();
+      status.textContent = '保存しました！（うまくいかない時はもう一度押す）';
+    } catch (e) {
+      status.textContent = 'エラー。もう一度押してみて：' + e;
+    }
+    node.style.transform = prev;
+  });
+</script>
+</body>
+</html>
